@@ -17,7 +17,7 @@ This project demonstrates how to deploy **stateful** applications (WebSockets) o
 ### 2. Under the Hood
 | Initial State (Empty) | Database Persistence (DynamoDB) |
 | :---: | :---: |
-| ![Initial](images/initial-chat.png) | ![DynamoDB](images/dynamodb-proof.png) |
+| ![Initial](images/initial-chat.png) | ![DynamoDB](images/dynamodb.png) |
 
 ---
 
