@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AWS Cloud Chat</title>
+    <style>
+        :root {
+            --bg-color: #f4f4f9;
+            --header-bg: #333;
+            --text-color: #000;
+            --msg-bg: #fff;
+            --msg-mine: #007bff;
+            --msg-system: #e1e1e1;
+            --input-bg: #fff;
+            --border-color: #ddd;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #1a1a1a;
+            --header-bg: #000;
+            --text-color: #f4f4f9;
+            --msg-bg: #2d2d2d;
+            --msg-mine: #0056b3;
+            --msg-system: #444;
+            --input-bg: #2d2d2d;
+            --border-color: #444;
+        }
+
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: var(--bg-color); color: var(--text-color); display: flex; flex-direction: column; height: 100vh; transition: background 0.3s; }
+        
+        /* Header Controls */
+        header { background: var(--header-bg); color: white; padding: 1rem; display: flex; justify-content: space-between; align-items: center; }
+        .controls { display: flex; gap: 10px; align-items: center; }
+        select { padding: 5px; border-radius: 4px; }
+        .theme-btn { cursor: pointer; background: none; border: 1px solid white; color: white; padding: 5px 10px; border-radius: 4px; }
+
+        /* Chat Area */
+        #chat-container { flex: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; }
+        .message { background: var(--msg-bg); padding: 10px 15px; margin: 5px 0; border-radius: 20px; max-width: 70%; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+        .message.system { background: var(--msg-system); align-self: center; font-style: italic; font-size: 0.9em; }
+        .message.mine { background: var(--msg-mine); color: white; align-self: flex-end; }
+        .meta { font-size: 0.75em; opacity: 0.7; margin-bottom: 2px; }
+        .message.mine .meta { text-align: right; }
+
+        /* Input Area */
+        #input-area { background: var(--bg-color); padding: 1rem; display: flex; align-items: center; border-top: 1px solid var(--border-color); }
+        #input-area input { flex: 1; padding: 10px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 20px; outline: none; }
+        #typing-indicator { font-size: 0.8em; opacity: 0.7; padding: 0 1rem; height: 1.2em; }
+        
+        /* Modal */
+        #login-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 10; }
+        .modal-content { background: var(--bg-color); color: var(--text-color); padding: 2rem; border-radius: 8px; text-align: center; width: 300px; }
+        .modal-content input, .modal-content select, .modal-content button { width: 100%; padding: 10px; margin: 5px 0; box-sizing: border-box; }
+    </style>
+</head>
+<body>
+
+    <div id="login-modal">
+        <div class="modal-content">
+            <h2>Join Chat</h2>
+            <input type="text" id="username-input" placeholder="Enter your name" required />
+            <button onclick="initialJoin()">Start Chatting</button>
+        </div>
+    </div>
+
+    <header>
+        <div id="header-title">AWS Chat</div>
+        <div class="controls" id="controls" style="display:none;">
+            <select id="room-select" onchange="switchRoom(this.value)">
+                <option value="General">General</option>
+                <option value="Tech">Tech Talk</option>
+                <option value="Random">Random</option>
+            </select>
+            <button class="theme-btn" onclick="toggleTheme()">🌗</button>
+        </div>
+    </header>
+    
+    <div id="chat-container"></div>
+    <div id="typing-indicator"></div>
+
+    <form id="input-area">
+        <input id="msg-input" autocomplete="off" placeholder="Type a message..." />
+    </form>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        let myUsername = '';
+        let currentRoom = 'General';
+
+        // DOM Elements
+        const modal = document.getElementById('login-modal');
+        const chatContainer = document.getElementById('chat-container');
+        const msgInput = document.getElementById('msg-input');
+        const typingDiv = document.getElementById('typing-indicator');
+
+        // 1. Initial Login
+        function initialJoin() {
+            const name = document.getElementById('username-input').value;
+            if(!name) return alert("Enter a name");
+            myUsername = name;
+            modal.style.display = 'none';
+            document.getElementById('controls').style.display = 'flex';
+            document.getElementById('header-title').innerText = `User: ${name}`;
+            
+            // Actually join
+            socket.emit('joinRoom', { username: myUsername, room: currentRoom });
+        }
+
+        // 2. Switch Room Feature
+        function switchRoom(newRoom) {
+            if(newRoom === currentRoom) return;
+            currentRoom = newRoom;
+            chatContainer.innerHTML = ''; // Clear chat
+            socket.emit('joinRoom', { username: myUsername, room: newRoom });
+        }
+
+        // 3. Theme Feature
+        function toggleTheme() {
+            const body = document.body;
+            if (body.getAttribute('data-theme') === 'dark') {
+                body.removeAttribute('data-theme');
+            } else {
+                body.setAttribute('data-theme', 'dark');
+            }
+        }
+
+        // Socket Events
+        socket.on('message', (msg) => addMessageToUI(msg));
+        
+        socket.on('loadHistory', (messages) => {
+            chatContainer.innerHTML = ''; // Ensure clear before loading
+            messages.forEach(item => {
+                addMessageToUI({
+                    user: item.User, text: item.Text, timestamp: item.TimeFormatted
+                });
+            });
+        });
+
+        // Sending Messages
+        document.getElementById('input-area').addEventListener('submit', (e) => {
+            e.preventDefault();
+            if (msgInput.value) {
+                socket.emit('chatMessage', msgInput.value);
+                msgInput.value = '';
+            }
+        });
+
+        // Typing Indicator
+        msgInput.addEventListener('input', () => socket.emit('typing'));
+        socket.on('typing', (user) => {
+            typingDiv.innerText = `${user} is typing...`;
+            setTimeout(() => typingDiv.innerText = "", 3000);
+        });
+
+        function addMessageToUI(msg) {
+            const div = document.createElement('div');
+            div.classList.add('message');
+            if (msg.user === myUsername) div.classList.add('mine');
+            if (msg.user === 'System') div.classList.add('system');
+
+            div.innerHTML = `
+                <div class="meta">${msg.user} • ${msg.timestamp}</div>
+                <div>${msg.text}</div>
+            `;
+            chatContainer.appendChild(div);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+    </script>
+</body>
+</html>

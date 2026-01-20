@@ -1,0 +1,21 @@
+{
+    "family": "chat-task-v2",
+    "networkMode": "bridge",
+    "taskRoleArn": "arn:aws:iam::033407688613:role/EcsDynamoDBTaskRole",
+    "containerDefinitions": [
+        {
+            "name": "chat-container",
+            "image": "033407688613.dkr.ecr.us-east-1.amazonaws.com/chat-repo:latest",
+            "memory": 256,
+            "cpu": 128,
+            "portMappings": [
+                {
+                    "containerPort": 80,
+                    "hostPort": 80,
+                    "protocol": "tcp"
+                }
+            ],
+            "essential": true
+        }
+    ]
+}
