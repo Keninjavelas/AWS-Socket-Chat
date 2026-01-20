@@ -1,3 +1,4 @@
+
 # 💬 AWS Cloud Chat — Real-Time Containerized Application
 
 **A stateful, real-time chat application orchestrated on Amazon ECS and persisted via DynamoDB.**
@@ -16,7 +17,7 @@ This project demonstrates how to deploy **stateful** applications (WebSockets) o
 ### 2. Under the Hood
 | Initial State (Empty) | Database Persistence (DynamoDB) |
 | :---: | :---: |
-| ![Initial](images/initial-chat.png) | ![DynamoDB](images/dynamodb.png) |
+| ![Initial](images/initial-chat.png) | ![DynamoDB](images/dynamodb-proof.png) |
 
 ---
 
@@ -26,11 +27,11 @@ Unlike standard "stateless" REST APIs, this application requires a persistent co
 
 ```mermaid
 graph TD
-    User((User)) -->|WebSocket Connection| EC2[Amazon ECS Task<br>(EC2 Launch Type)]
-    EC2 -->|Read/Write History| DDB[(Amazon DynamoDB)]
-    EC2 -->|Pull Image| ECR[Amazon ECR]
+    User((User)) -->|WebSocket Connection| EC2["Amazon ECS Task<br>(EC2 Launch Type)"]
+    EC2 -->|Read/Write History| DDB[("Amazon DynamoDB")]
+    EC2 -->|Pull Image| ECR["Amazon ECR"]
     
-    subgraph VPC [AWS Cloud]
+    subgraph VPC ["AWS Cloud"]
         EC2
         DDB
     end
